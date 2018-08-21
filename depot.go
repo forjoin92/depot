@@ -25,8 +25,8 @@ func main() {
 	httpServer := service.NewHTTPServer(node, *testAddr, *testPort, false, false)
 
 	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		httpServer.Serve()
 		wg.Done()
 	}()

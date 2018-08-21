@@ -59,16 +59,11 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 
 	clusters := strings.Split(cluster, ",")
 	servers := make([]raft.Server, len(clusters))
-
 	for i, server := range clusters {
-		/*addr, err := net.ResolveTCPAddr("tcp", server)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Failed parsing URL (%v)", err))
-		}*/
 		servers[i] = raft.Server{
-			ID: raft.ServerID(server),
-			//Address: raft.ServerAddress(addr.IP),
+			ID:      raft.ServerID(server),
 			Address: raft.ServerAddress(server),
+			//Address: transport.LocalAddr(),
 		}
 	}
 
@@ -76,7 +71,6 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 		Servers: servers,
 	}
 
-	// This should only be called at the beginning of time for the cluster.
 	r.BootstrapCluster(configuration)
 
 	node := &RaftNode{

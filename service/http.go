@@ -59,7 +59,7 @@ func (s *HTTPServer) Serve() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s: listening on %s", "http", s.addr)
+	fmt.Printf("%s: listening on %s\n", "http", s.addr)
 
 	server := &http.Server{
 		Handler: s,
@@ -70,7 +70,7 @@ func (s *HTTPServer) Serve() {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("%s: closing %s", "http", s.addr)
+	fmt.Printf("%s: closing %s\n", "http", s.addr)
 }
 
 func (s *HTTPServer) GetValue(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -85,6 +85,7 @@ func (s *HTTPServer) Set(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 		return
 	}
 	defer r.Body.Close()
+
 	for k, v := range kvs {
 		s.node.Set(k, v)
 	}
