@@ -1,14 +1,15 @@
 package service
 
 import (
-	"net/http"
-	"github.com/forjoin92/depot/raftnode"
-	"github.com/julienschmidt/httprouter"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"strings"
+
+	"github.com/forjoin92/depot/raftnode"
+	"github.com/julienschmidt/httprouter"
 )
 
 type HTTPServer struct {
@@ -16,19 +17,21 @@ type HTTPServer struct {
 	tlsEnabled  bool
 	tlsRequired bool
 	router      http.Handler
-	addr string
-	port string
-	listener net.Listener
+	addr        string
+	port        string
+	listener    net.Listener
 }
 
 func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, tlsRequired bool) *HTTPServer {
 	router := httprouter.New()
 
 	s := &HTTPServer{
-		node:         node,
+		node:        node,
 		tlsEnabled:  tlsEnabled,
 		tlsRequired: tlsRequired,
 		router:      router,
+		addr:        addr,
+		port:        port,
 	}
 
 	router.GET("/get/:key", s.GetValue)
@@ -59,7 +62,7 @@ func (s *HTTPServer) Serve() {
 	fmt.Printf("%s: listening on %s", "http", s.addr)
 
 	server := &http.Server{
-		Handler:  s,
+		Handler: s,
 	}
 	err = server.Serve(s.listener)
 	// theres no direct way to detect this error because it is not exposed

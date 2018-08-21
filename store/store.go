@@ -1,14 +1,13 @@
 package store
 
 import (
-	"sync"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"sync"
 
 	"github.com/hashicorp/raft"
-
-	"encoding/json"
-	"fmt"
-	"errors"
 )
 
 type KvStore struct {
@@ -53,10 +52,10 @@ func (s *KvStore) apply(op Op) interface{} {
 	return nil
 }
 
-type Op struct{
+type Op struct {
 	Method string
-	Key string
-	Value string
+	Key    string
+	Value  string
 }
 
 func (kv *KvStore) Apply(log *raft.Log) interface{} {

@@ -1,6 +1,7 @@
 package raftnode
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"github.com/forjoin92/depot/store"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
-	"encoding/json"
 )
 
 type RaftNode struct {
@@ -45,7 +45,6 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 		return nil, errors.New(fmt.Sprintf("Failed to create file snapshot store: %s", err.Error()))
 	}
 
-	// Create the log store and stable store.
 	logStore, err := raftboltdb.NewBoltStore(filepath.Join(raftDBPath, "raft.db"))
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Failed to create log store and stable store: %s", err.Error()))
@@ -102,9 +101,9 @@ func (node *RaftNode) Set(key, value string) error {
 	}
 
 	op := &store.Op{
-		Method:  "SET",
-		Key: key,
-		Value: value,
+		Method: "SET",
+		Key:    key,
+		Value:  value,
 	}
 
 	cmd, err := json.Marshal(op)
@@ -115,7 +114,7 @@ func (node *RaftNode) Set(key, value string) error {
 	// Apply is used to issue a command to the FSM in a highly consistent manner.
 	// This returns a future that ca be used to wait on the application.
 	// This must be run on the leader or it will fail.
-	return node.raft.Apply(cmd, 10 * time.Second).Error()
+	return node.raft.Apply(cmd, 10*time.Second).Error()
 }
 
 func (node *RaftNode) Del(key string) error {
@@ -124,8 +123,8 @@ func (node *RaftNode) Del(key string) error {
 	}
 
 	op := &store.Op{
-		Method:  "DEL",
-		Key: key,
+		Method: "DEL",
+		Key:    key,
 	}
 
 	cmd, err := json.Marshal(op)
@@ -136,5 +135,5 @@ func (node *RaftNode) Del(key string) error {
 	// Apply is used to issue a command to the FSM in a highly consistent manner.
 	// This returns a future that ca be used to wait on the application.
 	// This must be run on the leader or it will fail.
-	return node.raft.Apply(cmd, 10 * time.Second).Error()
+	return node.raft.Apply(cmd, 10*time.Second).Error()
 }
