@@ -26,7 +26,20 @@ type HTTPServer struct {
 	listener    net.Listener
 }
 
-func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, tlsRequired bool) *HTTPServer {
+func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, tlsRequired bool) (*HTTPServer, error) {
+	// check node is empty or not
+	if node == nil {
+		return nil, fmt.Errorf("Node should not be empty")
+	}
+
+	// set default http addr and port
+	if addr == "" {
+		addr = "127.0.0.1"
+	}
+	if port == "" {
+		port = "90" + strings.Split(string(node.ID()), ":")[1][3:]
+	}
+
 	router := httprouter.New()
 
 	s := &HTTPServer{
@@ -44,7 +57,7 @@ func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, 
 	router.POST("/addNode", s.addNode)
 	router.DELETE("/removeNode", s.removeNode)
 
-	return s
+	return s, nil
 }
 
 func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {

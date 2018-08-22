@@ -19,6 +19,7 @@ type RaftNode struct {
 	id    string
 	peers []string
 
+	dataDir      string
 	snapshotPath string
 	raftDBPath   string
 
@@ -26,44 +27,68 @@ type RaftNode struct {
 	raft *raft.Raft
 }
 
-func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath string) (*RaftNode, error) {
+func NewRaftNode(id string, cluster string, dataDir string, snapshotPath string, raftDBPath string) (*RaftNode, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id should not be empty")
+	}
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(id)
+	config.SnapshotInterval = 30 * time.Second
+	config.SnapshotThreshold = 10
+	config.TrailingLogs = 10
+
+	if dataDir == "" {
+		dataDir = filepath.Join(DefaultDataDir(), id)
+	}
+
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
+		return nil, fmt.Errorf("Failed to mkdir (%s): (%v)", dataDir, err)
+	}
 
 	addr, err := net.ResolveTCPAddr("tcp", id)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to resolve TCP address: %s", err.Error()))
+		return nil, fmt.Errorf("Failed to resolve TCP address (%s): (%v)", id, err)
 	}
 
 	transport, err := raft.NewTCPTransport(id, addr, 3, 10*time.Second, os.Stderr)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to create TCP transport: %s", err.Error()))
+		return nil, fmt.Errorf("Failed to create TCP transport (%s): (%v)", id, err)
 	}
 
+	if snapshotPath == "" {
+		snapshotPath = dataDir
+	}
 	snapshot, err := raft.NewFileSnapshotStore(snapshotPath, 3, os.Stderr)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to create file snapshot store: %s", err.Error()))
+		return nil, fmt.Errorf("Failed to create file snapshot store (%s): (%v)", snapshotPath, err)
 	}
 
-	logStore, err := raftboltdb.NewBoltStore(filepath.Join(raftDBPath, "raft.db"))
+	if raftDBPath == "" {
+		raftDBPath = filepath.Join(dataDir, "raft.db")
+	}
+	logStore, err := raftboltdb.NewBoltStore(raftDBPath)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to create log store and stable store: %s", err.Error()))
+		return nil, fmt.Errorf("Failed to create log store and stable store (%s): (%v)", raftDBPath, err)
 	}
 
 	kvs := store.NewKVStore()
 
 	r, err := raft.NewRaft(config, kvs, logStore, logStore, snapshot, transport)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Failed to create Raft system: %s", err.Error()))
+		return nil, fmt.Errorf("Failed to create Raft system : (%v)", err)
 	}
 
-	clusters := strings.Split(cluster, ",")
+	var clusters []string
+	if cluster == "" {
+		clusters = append(clusters, id)
+	} else {
+		clusters = strings.Split(cluster, ",")
+	}
 	servers := make([]raft.Server, len(clusters))
 	for i, server := range clusters {
 		servers[i] = raft.Server{
 			ID:      raft.ServerID(server),
 			Address: raft.ServerAddress(server),
-			//Address: transport.LocalAddr(),
 		}
 	}
 
@@ -74,12 +99,15 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 	r.BootstrapCluster(configuration)
 
 	node := &RaftNode{
-		id:           id,
-		peers:        clusters,
+		id:    id,
+		peers: clusters,
+
+		dataDir:      dataDir,
 		snapshotPath: snapshotPath,
 		raftDBPath:   raftDBPath,
-		kvs:          kvs,
-		raft:         r,
+
+		kvs:  kvs,
+		raft: r,
 	}
 
 	return node, nil
@@ -133,6 +161,10 @@ func (node *RaftNode) DeleteKV(key string) error {
 	// This returns a future that ca be used to wait on the application.
 	// This must be run on the leader or it will fail.
 	return node.raft.Apply(cmd, 10*time.Second).Error()
+}
+
+func (node *RaftNode) ID() string {
+	return node.id
 }
 
 // 判断节点是否是leader
