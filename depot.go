@@ -17,13 +17,14 @@ func main() {
 	testPort := flag.String("testPort", "8090", "test port")
 	flag.Parse()
 
+	// 新建raft节点
 	node, err := raftnode.NewRaftNode(*id, *cluster, *snapshotPath, *raftDBPath)
 	if err != nil {
 		panic(err)
 	}
 
+	// http服务，提供keyvalue的增删改查和增删节点
 	httpServer := service.NewHTTPServer(node, *testAddr, *testPort, false, false)
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {

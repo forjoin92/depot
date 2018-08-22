@@ -85,13 +85,13 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 	return node, nil
 }
 
-func (node *RaftNode) Get(key string) string {
+func (node *RaftNode) GetKV(key string) string {
 	return node.kvs.Get(key)
 }
 
-func (node *RaftNode) Set(key, value string) error {
-	if node.raft.State() != raft.Leader {
-		return errors.New("Not the leader, all changes to the system must go through the leader.")
+func (node *RaftNode) SetKV(key, value string) error {
+	if !node.IsLeader() {
+		return errors.New("Not the leader")
 	}
 
 	op := &store.Op{
@@ -111,9 +111,9 @@ func (node *RaftNode) Set(key, value string) error {
 	return node.raft.Apply(cmd, 10*time.Second).Error()
 }
 
-func (node *RaftNode) Del(key string) error {
-	if node.raft.State() != raft.Leader {
-		return errors.New("Not the leader, all changes to the system must go through the leader.")
+func (node *RaftNode) DeleteKV(key string) error {
+	if !node.IsLeader() {
+		return errors.New("Not the leader")
 	}
 
 	op := &store.Op{
@@ -130,4 +130,27 @@ func (node *RaftNode) Del(key string) error {
 	// This returns a future that ca be used to wait on the application.
 	// This must be run on the leader or it will fail.
 	return node.raft.Apply(cmd, 10*time.Second).Error()
+}
+
+// 判断节点是否是leader
+func (node *RaftNode) IsLeader() bool {
+	return node.raft.State() == raft.Leader
+}
+
+// 获取raft集群leader
+func (node *RaftNode) Leader() raft.ServerAddress {
+	return node.raft.Leader()
+}
+
+// 增加raft集群节点
+func (node *RaftNode) AddNode(id string) error {
+	return node.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(id), 0, 0).Error()
+}
+
+// 移除raft集群节点
+func (node *RaftNode) RemoveNode(id string) error {
+	if !node.IsLeader() {
+		return errors.New("Not the leader")
+	}
+	return node.raft.RemoveServer(raft.ServerID(id), 0, 0).Error()
 }

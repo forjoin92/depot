@@ -68,11 +68,9 @@ func (kv *KvStore) Apply(log *raft.Log) interface{} {
 }
 
 func (kv *KvStore) Snapshot() (raft.FSMSnapshot, error) {
-	//TODO:
 	return nil, nil
 }
 
 func (s *KvStore) Restore(rc io.ReadCloser) error {
-	// TODO
 	return nil
 }

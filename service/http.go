@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -34,9 +37,10 @@ func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, 
 		port:        port,
 	}
 
-	router.GET("/get/:key", s.GetValue)
-	router.PUT("/set", s.Set)
-	router.DELETE("/delete/:key", s.Delete)
+	router.GET("/getKV/:key", s.getKV)
+	router.PUT("/setKV", s.setKV)
+	router.DELETE("/deleteKV/:key", s.deleteKV)
+	router.POST("/addNode", s.addNode)
 
 	return s
 }
@@ -65,7 +69,6 @@ func (s *HTTPServer) Serve() {
 		Handler: s,
 	}
 	err = server.Serve(s.listener)
-	// theres no direct way to detect this error because it is not exposed
 	if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 		fmt.Println(err)
 	}
@@ -73,29 +76,88 @@ func (s *HTTPServer) Serve() {
 	fmt.Printf("%s: closing %s\n", "http", s.addr)
 }
 
-func (s *HTTPServer) GetValue(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	fmt.Fprintf(w, "%s", s.node.Get(ps.ByName("key")))
+// 获取value
+func (s *HTTPServer) getKV(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	value := s.node.GetKV(ps.ByName("key"))
+	if value == "" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "%s", value)
 }
 
-func (s *HTTPServer) Set(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 设置keyvalue
+func (s *HTTPServer) setKV(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	kvs := make(map[string]string)
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&kvs); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Failed to read on PUT (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	for k, v := range kvs {
-		s.node.Set(k, v)
+		if err := s.node.SetKV(k, v); err != nil {
+			log.Printf("Failed to set (%v)\n", err)
+			http.Error(w, "Failed on POST", http.StatusBadRequest)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *HTTPServer) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 删除keyvalue
+func (s *HTTPServer) deleteKV(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	key := ps.ByName("key")
-	if err := s.node.Del(key); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	if err := s.node.DeleteKV(key); err != nil {
+		log.Printf("Failed to delete (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// 增加raft集群节点
+func (s *HTTPServer) addNode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	id, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed to read on POST (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if s.node.IsLeader() {
+		// 接收节点为leader，直接增加节点
+		err = s.node.AddNode(string(id))
+	} else {
+		// 接收点不是leader，转发到leader节点
+		var url = fmt.Sprintf("http://%s/addNode", string(s.node.Leader()))
+		_, err = http.Post(url, "application/json", bytes.NewReader(id))
+	}
+	if err != nil {
+		log.Printf("Failed to add node (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// 移除raft集群节点
+func (s *HTTPServer) removeNode(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	id, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed to read on POST (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if err := s.node.RemoveNode(string(id)); err != nil {
+		log.Printf("Failed to remove node (%v)\n", err)
+		http.Error(w, "Failed on POST", http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
