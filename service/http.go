@@ -13,6 +13,7 @@ import (
 
 	"github.com/forjoin92/depot/raftnode"
 	"github.com/julienschmidt/httprouter"
+	"strconv"
 )
 
 type HTTPServer struct {
@@ -41,6 +42,7 @@ func NewHTTPServer(node *raftnode.RaftNode, addr, port string, tlsEnabled bool, 
 	router.PUT("/setKV", s.setKV)
 	router.DELETE("/deleteKV/:key", s.deleteKV)
 	router.POST("/addNode", s.addNode)
+	router.DELETE("/removeNode", s.removeNode)
 
 	return s
 }
@@ -63,7 +65,7 @@ func (s *HTTPServer) Serve() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s: listening on %s\n", "http", s.addr)
+	fmt.Printf("%s: listening on %s:%s\n", "http", s.addr, s.port)
 
 	server := &http.Server{
 		Handler: s,
@@ -73,10 +75,10 @@ func (s *HTTPServer) Serve() {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("%s: closing %s\n", "http", s.addr)
+	fmt.Printf("%s: closing %s:%s\n", "http", s.addr, s.port)
 }
 
-// 获取value
+// 获取keyvalue
 func (s *HTTPServer) getKV(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	value := s.node.GetKV(ps.ByName("key"))
 	if value == "" {
@@ -93,7 +95,7 @@ func (s *HTTPServer) setKV(w http.ResponseWriter, r *http.Request, _ httprouter.
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&kvs); err != nil {
 		log.Printf("Failed to read on PUT (%v)\n", err)
-		http.Error(w, "Failed on POST", http.StatusBadRequest)
+		http.Error(w, "Failed on PUT", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -101,7 +103,7 @@ func (s *HTTPServer) setKV(w http.ResponseWriter, r *http.Request, _ httprouter.
 	for k, v := range kvs {
 		if err := s.node.SetKV(k, v); err != nil {
 			log.Printf("Failed to set (%v)\n", err)
-			http.Error(w, "Failed on POST", http.StatusBadRequest)
+			http.Error(w, "Failed on PUT", http.StatusBadRequest)
 			return
 		}
 	}
@@ -134,7 +136,17 @@ func (s *HTTPServer) addNode(w http.ResponseWriter, r *http.Request, _ httproute
 		err = s.node.AddNode(string(id))
 	} else {
 		// 接收点不是leader，转发到leader节点
-		var url = fmt.Sprintf("http://%s/addNode", string(s.node.Leader()))
+		leader := s.node.Leader()
+		raftAddr := strings.Split(string(leader), ":")
+		raftPort, err := strconv.Atoi(raftAddr[1])
+		if err != nil {
+			log.Printf("Failed to get raft api port (%v)\n", err)
+			http.Error(w, "Failed on POST", http.StatusBadRequest)
+			return
+		}
+		apiPort := 9000 + raftPort%100
+		url := fmt.Sprintf("http://%s:%d/addNode", raftAddr[0], apiPort)
+		log.Println("转发ip:", url)
 		_, err = http.Post(url, "application/json", bytes.NewReader(id))
 	}
 	if err != nil {

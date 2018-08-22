@@ -85,10 +85,12 @@ func NewRaftNode(id string, cluster string, snapshotPath string, raftDBPath stri
 	return node, nil
 }
 
+// 获取keyvalue
 func (node *RaftNode) GetKV(key string) string {
 	return node.kvs.Get(key)
 }
 
+// 设置keyvalue
 func (node *RaftNode) SetKV(key, value string) error {
 	if !node.IsLeader() {
 		return errors.New("Not the leader")
@@ -111,6 +113,7 @@ func (node *RaftNode) SetKV(key, value string) error {
 	return node.raft.Apply(cmd, 10*time.Second).Error()
 }
 
+// 删除keyvalue
 func (node *RaftNode) DeleteKV(key string) error {
 	if !node.IsLeader() {
 		return errors.New("Not the leader")

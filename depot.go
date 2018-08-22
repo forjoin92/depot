@@ -14,7 +14,7 @@ func main() {
 	snapshotPath := flag.String("snapshotPath", "", "raft snapshot path")
 	raftDBPath := flag.String("raftDBPath", "", "raft raftDB path")
 	testAddr := flag.String("testAddr", "127.0.0.1", "test addr")
-	testPort := flag.String("testPort", "8090", "test port")
+	testPort := flag.String("testPort", "9001", "test port")
 	flag.Parse()
 
 	// 新建raft节点
