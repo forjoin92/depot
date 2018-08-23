@@ -13,7 +13,7 @@ import (
 
 type KvStore struct {
 	sync.RWMutex
-	KvStore map[string]string
+	kvStore map[string]string
 }
 
 func (kv *KvStore) Apply(log *raft.Log) interface{} {
@@ -45,13 +45,13 @@ func (kv *KvStore) Restore(inp io.ReadCloser) error {
 		panic(err)
 	}
 	for k, v := range kvs {
-		kv.KvStore[k] = v
+		kv.kvStore[k] = v
 	}
 	return nil
 }
 
 func (kv *KvStore) Persist(sink raft.SnapshotSink) error {
-	data, err := json.Marshal(kv.KvStore)
+	data, err := json.Marshal(kv.kvStore)
 	if err != nil {
 		return err
 	}
@@ -70,26 +70,26 @@ func (kv *KvStore) Release() {
 
 func NewKVStore() *KvStore {
 	return &KvStore{
-		KvStore: make(map[string]string),
+		kvStore: make(map[string]string),
 	}
 }
 
 func (s *KvStore) Get(key string) string {
 	s.RLock()
 	defer s.RUnlock()
-	return s.KvStore[key]
+	return s.kvStore[key]
 }
 
 func (s *KvStore) set(key, value string) {
 	s.Lock()
 	defer s.Unlock()
-	s.KvStore[key] = value
+	s.kvStore[key] = value
 }
 
 func (s *KvStore) del(key string) {
 	s.Lock()
 	defer s.Unlock()
-	delete(s.KvStore, key)
+	delete(s.kvStore, key)
 }
 
 func (s *KvStore) apply(op Op) interface{} {
