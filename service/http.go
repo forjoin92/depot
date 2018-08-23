@@ -9,11 +9,11 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/forjoin92/depot/raftnode"
 	"github.com/julienschmidt/httprouter"
-	"strconv"
 )
 
 type HTTPServer struct {

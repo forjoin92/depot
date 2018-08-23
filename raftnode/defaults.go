@@ -1,10 +1,10 @@
 package raftnode
 
 import (
-	"runtime"
-	"path/filepath"
 	"os"
 	"os/user"
+	"path/filepath"
+	"runtime"
 )
 
 func DefaultDataDir() string {
@@ -12,7 +12,6 @@ func DefaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			// "/Users/wangyanyu/Library/Ethereum"
 			return filepath.Join(home, "raft")
 		} else if runtime.GOOS == "windows" {
 			return filepath.Join(home, "AppData", "raft")

@@ -1,9 +1,9 @@
 package service
 
 import (
-	"testing"
-	"strings"
 	"fmt"
+	"strings"
+	"testing"
 )
 
 func TestParseUrl(t *testing.T) {

@@ -64,9 +64,9 @@ func NewRaftNode(id string, cluster string, dataDir string, snapshotPath string,
 	}
 
 	if raftDBPath == "" {
-		raftDBPath = filepath.Join(dataDir, "raft.db")
+		raftDBPath = dataDir
 	}
-	logStore, err := raftboltdb.NewBoltStore(raftDBPath)
+	logStore, err := raftboltdb.NewBoltStore(filepath.Join(raftDBPath, "raft.db"))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create log store and stable store (%s): (%v)", raftDBPath, err)
 	}
