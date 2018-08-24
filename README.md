@@ -1,5 +1,5 @@
 # depot
-a store by hashicorp/raft
+a store by hashicorp/raft for demonstrate
 
 ## Getting Started
 
@@ -50,10 +50,11 @@ curl -L http://127.0.0.1:9001/addNode -XPOST -d 127.0.0.1:30402
 
 ```sh
 ./depot -cluster 127.0.0.1:30401,127.0.0.1:30402 -id 127.0.0.1:30401 -testAddr 127.0.0.1 -testPort 9001
+
 ./depot -cluster 127.0.0.1:30401,127.0.0.1:30402 -id 127.0.0.1:30402 -testAddr 127.0.0.1 -testPort 9002
 ```
 
-Delete one member of depot's cluster
+Delete one member of depot's cluster:
 
 ```sh
 curl -L http://127.0.0.1:9001/removeNode -XDELETE 127.0.0.1:30402
