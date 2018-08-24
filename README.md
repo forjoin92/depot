@@ -59,3 +59,5 @@ Delete one member of depot's cluster:
 ```sh
 curl -L http://127.0.0.1:9001/removeNode -XDELETE 127.0.0.1:30402
 ```
+
+### DESIGN
